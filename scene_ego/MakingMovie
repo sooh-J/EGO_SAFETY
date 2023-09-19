@@ -1,0 +1,121 @@
+import pickle
+import numpy as np
+import json, codecs
+import numpy as np
+
+import re  # 추가: 정규 표현식을 사용하기 위한 모듈
+import os   # 추가: 파일 목록을 얻기 위한 모듈
+
+def extract_number(filename):
+    match = re.search(r'\d+', filename)
+    if match:
+        return int(match.group())
+    return 0  # 숫자가 없는 경우 0으로 처리합니다.
+
+# Loop through the range
+for o in range(0,1000):
+    # Use f-string formatting for the filename
+    filename = f'screenshot_{o}.jpg.pkl'
+    
+    # Open and load the file
+    try:
+        with open(filename, 'rb') as file:
+            loaded_data = pickle.load(file)
+        
+        # Convert loaded data to numpy array and print it
+        loaded_data = np.array(loaded_data)
+        # print(loaded_data)
+
+        
+        # Convert numpy array to list
+        loaded_data = list([x,y,1-z] for x,y,z in loaded_data)
+        # list_array
+        
+        file_path = "output_skeleton.json" 
+        # # Serialize to JSON
+        # json_array = json.dumps(list_array)
+        
+        heatmap_sequence = ["Neck", "Right_shoulder", "Right_elbow", "Right_wrist", "Left_shoulder", "Left_elbow",
+                                "Left_wrist", "Right_hip", "Right_knee", "Right_ankle", "Right_foot", "Left_hip",
+                                "Left_knee", "Left_ankle", "Left_foot"]
+        
+        sk_dict = dict(zip(heatmap_sequence,loaded_data))
+        sk_dict
+
+        lines = [(0, 1), (0, 4), (1, 2), (2, 3), (4, 5), (5, 6), (1, 7), (4, 11), 
+         (7, 8), (8, 9), (9, 10), (11, 12), (12, 13), (13, 14), (7, 11)]
+        heatmap_sequence = ["Neck", "Right_shoulder", "Right_elbow", "Right_wrist", "Left_shoulder", "Left_elbow",
+                                "Left_wrist", "Right_hip", "Right_knee", "Right_ankle", "Right_foot", "Left_hip",
+                                "Left_knee", "Left_ankle", "Left_foot"]
+        
+        dict_lines={}
+        for i,j in lines:
+            x1, y1, z1 = loaded_data[i]
+            x2, y2, z2 = loaded_data[j]
+            dict_lines['%s to %s'%(heatmap_sequence[i], heatmap_sequence[j])] = {'start_point' : [x1, y1, z1], 'end_point' :[x2, y2, z2]}
+        dict_lines
+
+        il = [1,2,3]
+        list(map(float, il))
+
+        # dict_lines = {k: {[float(num) for num in v_point] for k_point, v_point in v.items()} for k, v in dict_lines.items()}
+        dict_lines = {key_line:{k: list(map(float,v)) for k,v in v_line.items()} for key_line, v_line in dict_lines.items()}
+        # dict_lines
+        file_path = "./output_skeleton_lines.json" 
+        json.dump(dict_lines, codecs.open(file_path, 'w', encoding='utf-8'), separators=(',', ':'), sort_keys=True, indent=4) ### this saves the array in .json format
+                 
+
+        # %matplotlib widget
+        from mpl_toolkits.mplot3d import axes3d
+        import matplotlib.pyplot as plt
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        i=0
+        n=0
+        
+        for x,y,z in loaded_data:
+            if i == n:
+                ax.scatter3D(x,y,z, color='r' )# 3D scatter plot)
+            else:
+                ax.scatter3D(x,y,z,color='g')
+            i +=1
+        
+        lines = [(0, 1), (0, 4), (1, 2), (2, 3), (4, 5), (5, 6), (1, 7), (4, 11), 
+                 (7, 8), (8, 9), (9, 10), (11, 12), (12, 13), (13, 14), (7, 11)]
+        for i,j in lines:
+            x1, y1, z1 = loaded_data[i]
+            x2, y2, z2 = loaded_data[j]
+            ax.plot([x1, x2], [y1, y2], [z1, z2], 'b-')  # 'b-'는 파란색 실선을 의미합니다.
+        
+        ax.set_xlim(-1,1)
+        ax.set_ylim(-1,1)
+        ax.set_zlim(-0.6,1)
+        
+        # Z 축의 방향을 바꿉니다.
+        # ax.invert_zaxis()
+        fig.savefig(f"output_img{o}.png")
+        # fig2,ax2 = plt.subplots()
+        # plt.imshow(img)
+    except FileNotFoundError:
+        # print(f"File {filename} not found.")
+        break
+
+import cv2
+import os
+
+img_folder_path = './'  # 이미지 폴더 경로
+images = [img for img in os.listdir(img_folder_path) if img.endswith(".png")]
+images = sorted(images, key=extract_number)
+
+###### 연속적인 png 파일을 mp4로 MAKE ######
+frame = cv2.imread(os.path.join(img_folder_path, images[0]))
+height, width, layers = frame.shape
+
+video = cv2.VideoWriter('video.mp4', cv2.VideoWriter_fourcc(*'DIVX'), 25, (width,height))
+
+for image in images:
+    video.write(cv2.imread(os.path.join(img_folder_path, image)))
+
+cv2.destroyAllWindows()
+video.release()
